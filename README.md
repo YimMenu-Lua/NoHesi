@@ -1,0 +1,2 @@
+# NoHesi
+A simple and barebones implementation of NoHesi into YimMenu-Lua: Earn points by cutting up traffic at high speed.
