@@ -79,6 +79,27 @@ function DrawNoHesiGraphics(
     player_best,
     bgColor
 )
+    if combo_multiplier < 1000 then
+        Combo_ = string.format("%.1fX", combo_multiplier)
+    else
+        Combo_ = string.format("X%.1fK", combo_multiplier / 1000)
+    end
+
+    if total_multiplier < 1000 then
+        Total_ = string.format("%.1fX", total_multiplier)
+    else
+        Total_ = string.format("X%.1fK", total_multiplier / 1000)
+    end
+
+    if #tostring(Total_) <= 5 then
+        TotalX_Size = { 0.5, 0.59 }
+        TotalX_Posx, TotalX_PosY = posx + 0.05, posy - 0.04
+    else
+        local size_diff = (#Total_ - 5) * 0.1
+        local pos_diff = size_diff / 20
+        TotalX_Size = { 0.5 - size_diff, 0.59 - size_diff}
+        TotalX_Posx, TotalX_PosY = posx + (0.05 - pos_diff), posy - (0.04 - pos_diff)
+    end
     -- background
     GRAPHICS.DRAW_RECT(posx, posy + 0.01, 0.2, 0.22, 25, 25, 25, 150, false)
     DrawText(posx, posy - 0.1, "NoHesi", { 0, 0, 0, 200 }, { 3.0, 1.0 }, 1, 0, true, true)
@@ -97,13 +118,13 @@ function DrawNoHesiGraphics(
 
     -- combo
     GRAPHICS.DRAW_RECT(posx + 0.02, posy - 0.02, 0.043, 0.04, 255, 255, 255, 150, false)
-    DrawText(posx + 0.02, posy - 0.045, string.format("%.1fX", combo_multiplier), { 0, 0, 0, 200 }, { 1, 0.5 }, 0, 0,
+    DrawText(posx + 0.02, posy - 0.045, Combo_, { 0, 0, 0, 200 }, { 1, 0.5 }, 0, 0,
         false)
     DrawText(posx + 0.02, posy - 0.02, "Combo", { 0, 0, 0, 200 }, { 0.3, 0.3 }, 0, 0, false)
 
     -- total multiplier
     GRAPHICS.DRAW_RECT(posx + 0.07, posy - 0.015, 0.056, 0.05, 0, 0, 255, 100, false)
-    DrawText(posx + 0.05, posy - 0.04, string.format("%.1fX", total_multiplier), { 0, 0, 0, 200 }, { 0.5, 0.59 }, 0, 1,
+    DrawText(TotalX_Posx, TotalX_PosY, Total_, { 0, 0, 0, 200 }, TotalX_Size, 0, 1,
         false)
 
     -- score + time

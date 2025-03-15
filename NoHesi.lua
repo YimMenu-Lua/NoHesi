@@ -23,7 +23,7 @@ local gfx_bg_col = { 255, 255, 255, 150 }
 
 local Session = {}
 Session.__index = Session
-function Session:new()
+function Session:New()
     local instance = setmetatable({}, self)
     self._started = false
     self.score = 0
@@ -32,12 +32,14 @@ function Session:new()
     self.proximity_multiplier = 1.0
     self.combo_multiplier = 1.0
     self.multiplier = 1.0
+    self.nearmiss_interval = 3
     self.closest_nearmiss = 0.0
+    self.last_nearmiss_time = 0.0
     self.pb = highest_score
     return instance
 end
 
-function Session:reset()
+function Session:Reset()
     self.score = 0
     self.time = 0
     self.speed_multiplier = 1.0
@@ -45,12 +47,62 @@ function Session:reset()
     self.combo_multiplier = 1.0
     self.multiplier = 1.0
     self.closest_nearmiss = 0.0
+    self.last_nearmiss_time = 0.0
     self._started = false
 end
 
-local nohesi_tab = gui.add_tab("NoHesi")
-local CurrentSession = Session:new()
-nohesi_tab:add_imgui(function()
+function Session:Timer()
+    if script_enabled and self._started then
+        local start_time = os.time()
+        repeat
+            self.time = os.time() - start_time
+            coroutine.yield()
+        until not self._started
+        if self.time > longest_time then
+            longest_time = self.time
+            config:save_item("longest_time", self.time)
+        end
+        if self.score > config:read_item("highest_score") then
+            highest_score = self.score
+            self.pb = self.score
+            config:save_item("highest_score", self.score)
+        end
+        self:Reset()
+    end
+end
+
+function Session:ComboTimer()
+    if script_enabled and self._started then
+        local elapsed = os.clock() - self.last_nearmiss_time
+        if elapsed >= self.nearmiss_interval and self.combo_multiplier > 1 then
+            self.combo_multiplier = self.combo_multiplier - 1
+            self.last_nearmiss_time = os.clock()
+        end
+        coroutine.yield()
+    end
+end
+
+function Session:DrawGfx()
+    if script_enabled and draw_graphics and IsDriving() then
+        DrawNoHesiGraphics(
+            uiPosX,
+            uiPosY,
+            self.score,
+            self.speed_multiplier,
+            self.proximity_multiplier,
+            self.combo_multiplier,
+            self.multiplier,
+            Epoch2Time(self.time),
+            self.pb,
+            gfx_bg_col
+        )
+    end
+end
+
+
+local CurrentSession = Session:New()
+local NoHesi_tab = gui.add_tab("NoHesi")
+NoHesi_tab:add_imgui(function()
     ImGui.Spacing()
     script_enabled, _ = ImGui.Checkbox("Enable NoHesi", script_enabled)
     if script_enabled then
@@ -91,41 +143,17 @@ nohesi_tab:add_imgui(function()
     end
 end)
 
-script.register_looped("NOHESI_TIMER", function(timer)
-    if script_enabled and CurrentSession._started then
-        local start_time = os.time()
-        repeat
-            CurrentSession.time = os.time() - start_time
-            timer:sleep(1)
-        until not CurrentSession._started
-        if CurrentSession.time > longest_time then
-            longest_time = CurrentSession.time
-            config:save_item("longest_time", CurrentSession.time)
-        end
-        if CurrentSession.score > config:read_item("highest_score") then
-            highest_score = CurrentSession.score
-            CurrentSession.pb = CurrentSession.score
-            config:save_item("highest_score", CurrentSession.score)
-        end
-        CurrentSession:reset()
-    end
+
+script.register_looped("NOHESI_TIMER", function()
+    CurrentSession:Timer()
 end)
 
-script.register_looped("NOHESI_GRAPHICS", function()
-    if script_enabled and draw_graphics and IsDriving() then
-        DrawNoHesiGraphics(
-            uiPosX,
-            uiPosY,
-            CurrentSession.score,
-            CurrentSession.speed_multiplier,
-            CurrentSession.proximity_multiplier,
-            CurrentSession.combo_multiplier,
-            CurrentSession.multiplier,
-            Epoch2Time(CurrentSession.time),
-            CurrentSession.pb,
-            gfx_bg_col
-        )
-    end
+script.register_looped("NOHESI_COMBO_TIMER", function()
+    CurrentSession:ComboTimer()
+end)
+
+script.register_looped("NOHESI_GFX", function()
+    CurrentSession:DrawGfx()
 end)
 
 script.register_looped("NOHESI", function(nohesi)
@@ -135,6 +163,8 @@ script.register_looped("NOHESI", function(nohesi)
             local shortest_dist = 0
             local nearmiss_l, nearmiss_r, distance_l, distance_r = GetNearMisses()
             if nearmiss_l ~= 0 and nearmiss_l ~= last_nm_l then
+                CurrentSession.combo_multiplier = CurrentSession.combo_multiplier + 1
+                CurrentSession.last_nearmiss_time = os.clock()
                 CurrentSession.score = (math.floor(CurrentSession.score + CurrentSession.multiplier + (GetVehSpeed() * math.pi)))
                 CurrentSession.score = math.floor(CurrentSession.score + (1000 * CurrentSession.multiplier))
                 if distance_l > 0 then
@@ -176,20 +206,6 @@ script.register_looped("NOHESI", function(nohesi)
                 end
             else
                 CurrentSession.proximity_multiplier = 1.0
-            end
-
-            if CurrentSession.score > 0 then
-                if CurrentSession.score > 1000 and CurrentSession.score <= 10000 then
-                    CurrentSession.combo_multiplier = 2.5
-                elseif CurrentSession.score > 10000 and CurrentSession.score <= 100000 then
-                    CurrentSession.combo_multiplier = 5.5
-                elseif CurrentSession.score > 100000 and CurrentSession.score <= 500000 then
-                    CurrentSession.combo_multiplier = 7.5
-                elseif CurrentSession.score >= 1000000 then
-                    CurrentSession.combo_multiplier = 10
-                end
-            else
-                CurrentSession.combo_multiplier = 1.0
             end
 
             CurrentSession.multiplier = (
