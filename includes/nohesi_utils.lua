@@ -23,7 +23,7 @@ end
 
 ---@param ... number
 ---@return number
-Sum = function(...)
+function Sum(...)
     local args, result = { ... }, 0
     for i = 1, #args do
         if type(args[i]) ~= 'number' then
@@ -37,107 +37,14 @@ Sum = function(...)
     return result
 end
 
----@param posX float
----@param posY float
----@param text string
----@param color table
----@param scale table
----@param font number
----@param alignment? number
----@param dropShadow? boolean
----@param outline? boolean
-DrawText = function(posX, posY, text, color, scale, font, alignment, dropShadow, outline)
-    HUD.BEGIN_TEXT_COMMAND_DISPLAY_TEXT("TWOSTRINGS")
-    HUD.SET_TEXT_COLOUR(color[1], color[2], color[3], color[4] or 255)
-    HUD.SET_TEXT_SCALE(scale[1], scale[2])
-    HUD.SET_TEXT_FONT(font)
-    if alignment and alignment >= 0 and alignment <= 2 then
-        HUD.SET_TEXT_JUSTIFICATION(alignment)
-        HUD.SET_TEXT_WRAP(posX, 1.0)
-    else
-        HUD.SET_TEXT_CENTRE(true)
+function GetScreenResolution()
+    local scr = {x = 0, y = 0}
+    local sr_ptr = memory.scan_pattern("66 0F 6E 0D ? ? ? ? 0F B7 3D")
+    if sr_ptr:is_valid() then
+        scr.x = sr_ptr:sub(0x4):rip():get_word()
+        scr.y = sr_ptr:add(0x4):rip():get_word()
     end
-    if dropShadow then
-        HUD.SET_TEXT_DROP_SHADOW()
-    end
-    if outline then
-        HUD.SET_TEXT_OUTLINE()
-    end
-    HUD.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME(text)
-    HUD.END_TEXT_COMMAND_DISPLAY_TEXT(posX, posY, 0)
-end
-
-function DrawNoHesiGraphics(
-    posx,
-    posy,
-    score,
-    speed_multiplier,
-    proximity_multiplier,
-    combo_multiplier,
-    total_multiplier,
-    time,
-    player_best,
-    bgColor
-)
-    if combo_multiplier < 1000 then
-        Combo_ = string.format("%.1fX", combo_multiplier)
-    else
-        Combo_ = string.format("X%.1fK", combo_multiplier / 1000)
-    end
-
-    if total_multiplier < 1000 then
-        Total_ = string.format("%.1fX", total_multiplier)
-    else
-        Total_ = string.format("X%.1fK", total_multiplier / 1000)
-    end
-
-    if #tostring(Total_) <= 5 then
-        TotalX_Size = { 0.5, 0.59 }
-        TotalX_Posx, TotalX_PosY = posx + 0.05, posy - 0.04
-    else
-        local size_diff = (#Total_ - 5) * 0.1
-        local pos_diff = size_diff / 20
-        TotalX_Size = { 0.5 - size_diff, 0.59 - size_diff}
-        TotalX_Posx, TotalX_PosY = posx + (0.05 - pos_diff), posy - (0.04 - pos_diff)
-    end
-    -- background
-    GRAPHICS.DRAW_RECT(posx, posy + 0.01, 0.2, 0.22, 25, 25, 25, 150, false)
-    DrawText(posx, posy - 0.1, "NoHesi", { 0, 0, 0, 200 }, { 3.0, 1.0 }, 1, 0, true, true)
-
-    -- speed
-    GRAPHICS.DRAW_RECT(posx - 0.075, posy - 0.02, 0.043, 0.04, 255, 255, 255, 150, false)
-    DrawText(posx - 0.075, posy - 0.045, string.format("%.1fX", speed_multiplier), { 0, 0, 0, 200 }, { 1, 0.5 }, 0, 0,
-        false)
-    DrawText(posx - 0.075, posy - 0.02, "Speed", { 0, 0, 0, 200 }, { 0.3, 0.3 }, 0, 0, false)
-
-    -- distance
-    GRAPHICS.DRAW_RECT(posx - 0.027, posy - 0.02, 0.043, 0.04, 255, 255, 255, 150, false)
-    DrawText(posx - 0.027, posy - 0.045, string.format("%.1fX", proximity_multiplier), { 0, 0, 0, 200 }, { 1, 0.5 }, 0, 0,
-        false)
-    DrawText(posx - 0.027, posy - 0.02, "Proximity", { 0, 0, 0, 200 }, { 0.3, 0.3 }, 0, 0, false)
-
-    -- combo
-    GRAPHICS.DRAW_RECT(posx + 0.02, posy - 0.02, 0.043, 0.04, 255, 255, 255, 150, false)
-    DrawText(posx + 0.02, posy - 0.045, Combo_, { 0, 0, 0, 200 }, { 1, 0.5 }, 0, 0,
-        false)
-    DrawText(posx + 0.02, posy - 0.02, "Combo", { 0, 0, 0, 200 }, { 0.3, 0.3 }, 0, 0, false)
-
-    -- total multiplier
-    GRAPHICS.DRAW_RECT(posx + 0.07, posy - 0.015, 0.056, 0.05, 0, 0, 255, 100, false)
-    DrawText(TotalX_Posx, TotalX_PosY, Total_, { 0, 0, 0, 200 }, TotalX_Size, 0, 1,
-        false)
-
-    -- score + time
-    GRAPHICS.DRAW_RECT(posx - 0.0275, posy + 0.031, 0.137, 0.055, bgColor[1], bgColor[2], bgColor[3], bgColor[4], false)
-    DrawText(posx - 0.0275, posy + 0.0155, string.format("%s PTS", SeparateInt(score)), { 0, 0, 0, 200 }, { 1, 0.5 }, 0)
-    GRAPHICS.DRAW_RECT(posx + 0.066, posy + 0.036, 0.05, 0.045, 90, 10, 220, 150, false)
-    DrawText(posx + 0.066, posy + 0.025, string.format("%s", time), { 0, 0, 0, 200 }, { 0.3, 0.3 }, 0, 0, false)
-
-    GRAPHICS.DRAW_RECT(posx - 0.081, posy + 0.082, 0.03, 0.04, 255, 215, 0, 150, false)
-    DrawText(posx - 0.081, posy + 0.062, "PB", { 0, 0, 0, 200 }, { 1, 0.5 }, 0, 0, false)
-    GRAPHICS.DRAW_RECT(posx + 0.016, posy + 0.082, 0.16, 0.04, 255, 215, 0, 150, false)
-    DrawText(posx + 0.01, posy + 0.062, string.format("%s PTS", SeparateInt(player_best)), { 0, 0, 0, 200 }, { 1, 0.5 },
-    0)
+    return scr
 end
 
 function IsDriving()
@@ -170,7 +77,7 @@ function GetEntityType(entity)
     return 0
 end
 
-CheckVehicleCollision = function()
+function CheckVehicleCollision()
     if ENTITY.HAS_ENTITY_COLLIDED_WITH_ANYTHING(self.get_veh()) then
         local entity = ENTITY.GET_LAST_ENTITY_HIT_BY_ENTITY_(self.get_veh())
         if entity ~= nil and entity ~= 0 and ENTITY.DOES_ENTITY_EXIST(entity) then
